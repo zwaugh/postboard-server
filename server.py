@@ -8,10 +8,12 @@ python server.py
 
 from flask import Flask, request, jsonify
 import time
+import collections
 
 app = Flask(__name__)
 
 _notice = None   # dict of content fields + internal _ metadata
+_logs   = collections.deque(maxlen=100)  # ring buffer of TX log lines
 
 
 # ─── API ──────────────────────────────────────────────────────────────────────
@@ -77,6 +79,20 @@ def clear():
     _notice = None
     print("[server] State cleared")
     return jsonify({"ok": True})
+
+
+@app.post("/log")
+def log_line():
+    body = request.get_json(silent=True) or {}
+    msg  = str(body.get("msg", ""))[:300]
+    if msg:
+        _logs.appendleft({"t": round(time.time(), 1), "msg": msg})
+    return jsonify({"ok": True})
+
+
+@app.get("/logs")
+def get_logs():
+    return jsonify(list(_logs))
 
 
 @app.get("/status")
@@ -234,6 +250,20 @@ UI_HTML = """<!DOCTYPE html>
   }
   #msg.ok  { color: #1a7f37; }
   #msg.err { color: #c0392b; }
+
+  .log-panel {
+    background: #1d1d1f;
+    border-radius: 10px;
+    padding: 14px 16px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #f5f5f7;
+  }
+  .log-panel .log-empty { color: #48484a; }
+  .log-panel .log-ts    { color: #48484a; margin-right: 10px; user-select: none; }
 </style>
 </head>
 <body>
@@ -306,6 +336,15 @@ UI_HTML = """<!DOCTYPE html>
 
 </div>
 
+<div style="max-width:960px;margin:20px auto 0;">
+  <div class="card">
+    <h2>TX Log</h2>
+    <div id="logPanel" class="log-panel">
+      <span class="log-empty">No messages yet — TX will post here when active.</span>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── Status polling ────────────────────────────────────────────────────────
   function fmt(ts) {
@@ -344,6 +383,24 @@ UI_HTML = """<!DOCTYPE html>
 
   refreshStatus();
   setInterval(refreshStatus, 3000);
+
+  // ── TX Log ────────────────────────────────────────────────────────────────
+  async function refreshLogs() {
+    const r = await fetch("/logs");
+    const logs = await r.json();
+    const panel = document.getElementById("logPanel");
+    if (!logs.length) {
+      panel.innerHTML = '<span class="log-empty">No messages yet — TX will post here when active.</span>';
+      return;
+    }
+    panel.innerHTML = logs.map(e => {
+      const t = new Date(e.t * 1000).toLocaleTimeString();
+      return `<div><span class="log-ts">${t}</span>${e.msg}</div>`;
+    }).join('');
+  }
+
+  refreshLogs();
+  setInterval(refreshLogs, 2000);
 
   // ── Form submit ───────────────────────────────────────────────────────────
   document.getElementById("noticeForm").addEventListener("submit", async (e) => {
