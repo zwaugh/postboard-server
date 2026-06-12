@@ -118,6 +118,11 @@ def index():
     return UI_HTML, 200, {"Content-Type": "text/html"}
 
 
+@app.get("/board")
+def board():
+    return BOARD_HTML, 200, {"Content-Type": "text/html"}
+
+
 UI_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -284,6 +289,17 @@ UI_HTML = """<!DOCTYPE html>
   <!-- ── Notice form ─────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Queue a Notice</h2>
+    <div class="field">
+      <label>Template <span class="opt">optional</span></label>
+      <select id="templatePicker" onchange="applyTemplate(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid #d2d2d7;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;outline:none;">
+        <option value="">— Select a template —</option>
+        <option value="fire_alarm">Fire Alarm Testing</option>
+        <option value="elevator">Elevator Out of Service</option>
+        <option value="maintenance">Building Maintenance</option>
+        <option value="water">Water Shutoff</option>
+        <option value="package">Package Delivery Available</option>
+      </select>
+    </div>
     <form id="noticeForm">
 
       <div class="field">
@@ -346,6 +362,71 @@ UI_HTML = """<!DOCTYPE html>
 </div>
 
 <script>
+  // ── Templates ─────────────────────────────────────────────────────────────
+  const TEMPLATES = {
+    fire_alarm: {
+      title: "NOTICE",
+      sub:   "FIRE ALARM SYSTEM TESTING",
+      date:  "Thursday, June 11, 2026",
+      time:  "9:00 AM  -  12:00 PM",
+      body:  "Fire alarm systems in this building will undergo scheduled maintenance and testing. The alarm may sound intermittently throughout this period.",
+      em:    "NO EVACUATION IS REQUIRED.",
+      f1:    "Questions? Contact Building Management",
+      f2:    "Tel: (555) 123-4567   |   mgmt@example.com",
+    },
+    elevator: {
+      title: "NOTICE",
+      sub:   "ELEVATOR OUT OF SERVICE",
+      date:  "Thursday, June 11, 2026",
+      time:  "8:00 AM  -  5:00 PM",
+      body:  "The main elevator will be temporarily out of service for scheduled maintenance. Please use the stairwell located near the east entrance.",
+      em:    "WE APOLOGIZE FOR THE INCONVENIENCE.",
+      f1:    "Questions? Contact Building Management",
+      f2:    "Tel: (555) 123-4567   |   mgmt@example.com",
+    },
+    maintenance: {
+      title: "NOTICE",
+      sub:   "SCHEDULED BUILDING MAINTENANCE",
+      date:  "Thursday, June 11, 2026",
+      time:  "7:00 AM  -  3:00 PM",
+      body:  "Routine building maintenance will be conducted. Contractors may be present in common areas and hallways. We appreciate your patience.",
+      em:    "THANK YOU FOR YOUR COOPERATION.",
+      f1:    "Questions? Contact Building Management",
+      f2:    "Tel: (555) 123-4567   |   mgmt@example.com",
+    },
+    water: {
+      title: "NOTICE",
+      sub:   "TEMPORARY WATER SHUTOFF",
+      date:  "Thursday, June 11, 2026",
+      time:  "10:00 AM  -  2:00 PM",
+      body:  "Water service to the building will be temporarily shut off to allow for emergency plumbing repairs. Please plan accordingly.",
+      em:    "WE EXPECT SERVICE TO RESUME BY 2:00 PM.",
+      f1:    "Questions? Contact Building Management",
+      f2:    "Tel: (555) 123-4567   |   mgmt@example.com",
+    },
+    package: {
+      title: "NOTICE",
+      sub:   "PACKAGE DELIVERY AVAILABLE",
+      date:  "Thursday, June 11, 2026",
+      time:  "9:00 AM  -  6:00 PM",
+      body:  "Packages are available for pick-up at the front desk. Please bring photo ID. Unclaimed packages will be held for 5 business days.",
+      em:    "FRONT DESK HOURS: 9:00 AM - 6:00 PM",
+      f1:    "Questions? Contact Building Management",
+      f2:    "Tel: (555) 123-4567   |   mgmt@example.com",
+    },
+  };
+
+  function applyTemplate(key) {
+    if (!key) return;
+    const t = TEMPLATES[key];
+    const form = document.getElementById("noticeForm");
+    for (const [field, value] of Object.entries(t)) {
+      const el = form.elements[field];
+      if (el) el.value = value;
+    }
+    document.getElementById("templatePicker").value = "";
+  }
+
   // ── Status polling ────────────────────────────────────────────────────────
   function fmt(ts) {
     if (!ts) return "—";
@@ -442,6 +523,203 @@ UI_HTML = """<!DOCTYPE html>
     document.getElementById("msg").textContent = "";
     refreshStatus();
   }
+</script>
+</body>
+</html>
+"""
+
+
+BOARD_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f0ede8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .board {
+    background: #fff;
+    border: 4px solid #1d1d1f;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 760px;
+    box-shadow: 6px 6px 0 #1d1d1f;
+    overflow: hidden;
+  }
+
+  .board-header {
+    background: #1d1d1f;
+    color: #fff;
+    text-align: center;
+    padding: 28px 24px 24px;
+  }
+  .board-header h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    letter-spacing: 1px;
+  }
+
+  .board-body { padding: 0 40px 32px; }
+
+  .board-subtitle {
+    text-align: center;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 700;
+    letter-spacing: .4px;
+    padding: 22px 0 18px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 2px solid #1d1d1f;
+    margin: 0 0 6px;
+  }
+  .divider + .divider { margin-top: 4px; margin-bottom: 0; }
+
+  .meta {
+    padding: 18px 0 6px;
+    font-size: 15px;
+    color: #1d1d1f;
+  }
+  .meta-row { margin-bottom: 8px; }
+  .meta-row span { font-weight: 600; margin-right: 8px; }
+
+  hr.rule {
+    border: none;
+    border-top: 1px solid #1d1d1f;
+    margin: 12px 0 20px;
+  }
+
+  .body-text {
+    font-size: 15px;
+    line-height: 1.65;
+    color: #1d1d1f;
+    margin-bottom: 20px;
+  }
+
+  .emphasis {
+    text-align: center;
+    font-size: clamp(16px, 2.5vw, 20px);
+    font-weight: 800;
+    letter-spacing: .3px;
+    margin: 8px 0 24px;
+  }
+
+  .footer {
+    border-top: 1px solid #1d1d1f;
+    padding-top: 14px;
+    font-size: 13px;
+    color: #3a3a3a;
+  }
+  .footer p { margin-bottom: 4px; }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 60px 24px;
+    color: #6e6e73;
+    font-size: 16px;
+  }
+  .empty h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #1d1d1f; }
+
+  /* Status dot */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 8px 12px 0;
+    font-size: 11px;
+    color: #aaa;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #34c759;
+  }
+  .dot.stale { background: #ff9500; }
+</style>
+</head>
+<body>
+
+<div style="width:100%;max-width:760px;">
+  <div class="status-bar">
+    <span class="dot" id="dot"></span>
+    <span id="statusTxt">Loading…</span>
+  </div>
+
+  <div class="board" id="board">
+    <div class="empty"><h2>Postboard</h2><p>No active notice.</p></div>
+  </div>
+</div>
+
+<script>
+  let currentId = null;
+
+  function render(n) {
+    if (!n) {
+      document.getElementById("board").innerHTML =
+        '<div class="empty"><h2>Postboard</h2><p>No active notice.</p></div>';
+      return;
+    }
+    const row = (label, val) => val
+      ? `<div class="meta-row"><span>${label}</span>${val}</div>` : "";
+    document.getElementById("board").innerHTML = `
+      <div class="board-header"><h1>${n.title || "NOTICE"}</h1></div>
+      <div class="board-body">
+        ${n.sub  ? `<div class="board-subtitle">${n.sub}</div>` : ""}
+        <hr class="divider"><hr class="divider">
+        <div class="meta">
+          ${row("Date", n.date)}
+          ${row("Time", n.time)}
+        </div>
+        <hr class="rule">
+        ${n.body ? `<p class="body-text">${n.body}</p>` : ""}
+        ${n.em   ? `<p class="emphasis">${n.em}</p>`   : ""}
+        <div class="footer">
+          ${n.f1 ? `<p>${n.f1}</p>` : ""}
+          ${n.f2 ? `<p>${n.f2}</p>` : ""}
+        </div>
+      </div>`;
+  }
+
+  async function refresh() {
+    try {
+      const s = await (await fetch("/status")).json();
+      if (!s.active) {
+        if (currentId !== null) { render(null); currentId = null; }
+        document.getElementById("statusTxt").textContent = "No active notice";
+        document.getElementById("dot").className = "dot stale";
+        return;
+      }
+      if (s.notice_id !== currentId) {
+        const n = await (await fetch("/notice")).json();
+        render(n);
+        currentId = s.notice_id;
+      }
+      const confirmed = s.confirmed;
+      document.getElementById("dot").className = "dot" + (confirmed ? "" : " stale");
+      document.getElementById("statusTxt").textContent = confirmed
+        ? "Displayed on board · " + new Date(s.delivered_at * 1000).toLocaleTimeString()
+        : "Pending delivery…";
+    } catch(e) {
+      document.getElementById("statusTxt").textContent = "Offline";
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 5000);
 </script>
 </body>
 </html>
